@@ -13,4 +13,8 @@ public class PromptUtility {
     public static String popularPlayersDetailsPrompt() {
         return "5 best players in {sports}. {format}";
     }
+
+    public static String explainImage() {
+        return "Explain what do you see in this image";
+    }
 }
