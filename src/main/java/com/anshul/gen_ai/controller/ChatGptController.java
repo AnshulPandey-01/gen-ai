@@ -1,11 +1,16 @@
 package com.anshul.gen_ai.controller;
 
+import com.anshul.gen_ai.config.Config;
+import com.anshul.gen_ai.config.StockMarketConfigProperties;
 import com.anshul.gen_ai.dto.PlayerDetails;
+import com.anshul.gen_ai.services.StockMarketService;
 import com.anshul.gen_ai.utility.PromptUtility;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import jakarta.annotation.PostConstruct;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
@@ -14,8 +19,10 @@ import org.springframework.ai.converter.MapOutputConverter;
 import org.springframework.ai.image.ImagePrompt;
 import org.springframework.ai.image.ImageResponse;
 import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.OpenAiImageModel;
 import org.springframework.ai.openai.OpenAiImageOptions;
+import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.FileSystemResource;
@@ -40,8 +47,11 @@ public class ChatGptController {
 
     private final ChatClient chatClient;
 
-    public ChatGptController(OpenAiChatModel chatModel) {
+    private final StockMarketConfigProperties stockMarketConfigProperties;
+
+    public ChatGptController(OpenAiChatModel chatModel, StockMarketConfigProperties stockMarketConfigProperties) {
         this.chatClient = ChatClient.create(chatModel);
+        this.stockMarketConfigProperties = stockMarketConfigProperties;
     }
 
     @GetMapping("")
@@ -99,5 +109,21 @@ public class ChatGptController {
                                 .text(PromptUtility.explainImage())
                                 .media(MimeTypeUtils.IMAGE_JPEG, new FileSystemResource(tempFile))
                 ).call().content();
+    }
+
+    @GetMapping("/stockMarket")
+    public String stockMarket(@RequestParam("message") String message) {
+        return chatClient
+                .prompt()
+                .user(message)
+                .toolCallbacks(
+                        FunctionToolCallback
+                                .builder("getStockPrice", new StockMarketService(stockMarketConfigProperties))
+                                .description("Get stock price for the given stock name")
+                                .inputType(StockMarketService.Request.class)
+                                .build()
+                )
+                .call()
+                .content();
     }
 }
